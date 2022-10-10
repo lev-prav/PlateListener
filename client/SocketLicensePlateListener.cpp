@@ -13,8 +13,8 @@ size_t SocketLicensePlateListener::read_complete(char *buf, const boost::system:
 
 void SocketLicensePlateListener::sync_echo(std::string msg) {
     msg += "\n";
-    ip::tcp::socket sock(service);
-    sock.connect(ep);
+    ip::tcp::socket sock(service_);
+    sock.connect(ep_);
 
     std::cout<<"Connected...\n";
 
@@ -23,7 +23,7 @@ void SocketLicensePlateListener::sync_echo(std::string msg) {
 
     std::cout<<"Start reading...\n";
     char buf[1024];
-    int bytes = read(sock, buffer(buf), boost::bind(read_complete,buf,_1,_2));
+    int bytes = boost::asio::read(sock, buffer(buf), boost::bind(read_complete,buf,_1,_2));
     std::string copy(buf, bytes - 1);
 
     std::cout << "server echoed our " << msg << " : "
@@ -34,8 +34,19 @@ void SocketLicensePlateListener::sync_echo(std::string msg) {
 }
 
 void SocketLicensePlateListener::start(){
-    int a = 0;
+    sock_.connect(ep_);
+
+    std::cout<<"Connected...\n";
 }
 void SocketLicensePlateListener::stop(){
-    int a = 0;
+    sock_.close();
+    std::cout<<"CLose socket\n";
+}
+
+void SocketLicensePlateListener::read() {
+    char buf[1024];
+    auto bytes = boost::asio::read(sock_, buffer(buf), boost::bind(read_complete,buf,_1,_2));
+    std::string copy(buf, bytes - 1);
+    if (copy.empty()) stop();
+    std::cout << "RECEIVED: "<< copy << std::endl;
 }

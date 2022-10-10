@@ -8,6 +8,10 @@ int main() {
     SocketLicensePlateListener socket;
     boost::thread thread(
             [msg, &socket] {
+                socket.start();
+                while(true)
+                    socket.read();
+                socket.stop();
                 return socket.sync_echo(msg);
             });
     thread.join();

@@ -2,6 +2,7 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 #include <boost/bind/bind.hpp>
+#include <queue>
 
 using namespace boost::asio;
 using namespace boost::posix_time;
@@ -9,20 +10,71 @@ using boost::system::error_code;
 using namespace boost::placeholders;
 
 class PlateServer{
-    io_service service;
-
+    std::vector<std::shared_ptr<ip::tcp::socket>> acceptedSockets_;
+    std::unique_ptr<ip::tcp::acceptor> acceptor_;
+    io_service service_;
+    std::mutex mut_;
+    std::queue<std::string> plates_;
+    std::atomic<bool> inWork { true };
 public:
+
+    PlateServer(){
+        acceptor_ = std::make_unique<ip::tcp::acceptor>(
+                ip::tcp::acceptor(service_, ip::tcp::endpoint(ip::tcp::v4(),8001))
+                );
+    }
+
     static size_t read_complete(char * buff, const error_code & err, size_t bytes) {
         if ( err) return 0;
         bool found = std::find(buff, buff + bytes, '\n') < buff + bytes;
         // we read one-by-one until we get to enter, no buffering
         return found ? 0 : 1;
     }
+
+    void acceptSocket(){
+        auto sock = std::make_shared<ip::tcp::socket>(ip::tcp::socket(service_));
+        std::cout<<"Socket created, start accepting...\n";
+        acceptor_->accept(*sock);
+        acceptedSockets_.push_back(sock);
+    }
+
+    void sendPlate(const std::string& plate){
+        std::cout<<"Send plates\n";
+        for (const auto& sock : acceptedSockets_){
+            sock->write_some(buffer(plate));
+        }
+    }
+
+    void closeSockets(){
+        std::cout<<"Close sockets\n";
+        for (const auto& sock : acceptedSockets_){
+            sock->close();
+        }
+    }
+
+    void run(){
+        acceptSocket();
+
+        auto thread(
+                [&plates_, &mut_, &inWork](){
+
+                    while(inWork){
+                        boost::this_thread::sleep(boost::posix_time::millisec(3000));
+                        std::lock_guard<std::mutex> locker(mut_);
+                        plates_.push("AU1488EB\n")
+                    }
+                });
+    }
+
+    void sendStop(){
+        sendPlate("\n");
+    }
+
     void handle_connections() {
-        ip::tcp::acceptor acceptor(service, ip::tcp::endpoint(ip::tcp::v4(),8001));
+        ip::tcp::acceptor acceptor(service_, ip::tcp::endpoint(ip::tcp::v4(),8001));
         char buff[1024];
         while ( true) {
-            ip::tcp::socket sock(service);
+            ip::tcp::socket sock(service_);
             std::cout<<"Socket created, start accepting...\n";
             acceptor.accept(sock);
 
@@ -39,4 +91,5 @@ public:
             sock.close();
         }
     }
+
 };
