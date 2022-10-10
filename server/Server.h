@@ -16,12 +16,15 @@ class PlateServer{
     std::mutex mut_;
     std::queue<std::string> plates_;
     std::atomic<bool> inWork { true };
+
+    std::unique_ptr<std::thread> dataThread;
+    std::unique_ptr<std::thread> sockThread;
 public:
 
     PlateServer(){
         acceptor_ = std::make_unique<ip::tcp::acceptor>(
                 ip::tcp::acceptor(service_, ip::tcp::endpoint(ip::tcp::v4(),8001))
-                );
+        );
     }
 
     static size_t read_complete(char * buff, const error_code & err, size_t bytes) {
@@ -53,17 +56,24 @@ public:
     }
 
     void run(){
-        acceptSocket();
 
-        auto thread(
-                [&plates_, &mut_, &inWork](){
+        dataThread = std::make_unique<std::thread>(
+                std::thread(
+                        [&](){
 
-                    while(inWork){
-                        boost::this_thread::sleep(boost::posix_time::millisec(3000));
-                        std::lock_guard<std::mutex> locker(mut_);
-                        plates_.push("AU1488EB\n")
-                    }
-                });
+                            while(inWork){
+                                boost::this_thread::sleep(boost::posix_time::millisec(3000));
+                                std::lock_guard<std::mutex> locker(mut_);
+                                plates_.push("AU1488EB\n");
+                            }
+                        }));
+        sockThread = std::make_unique<std::thread>(
+                std::thread(
+                        [&](){
+                            acceptSocket();
+                        }
+                )
+        );
     }
 
     void sendStop(){
