@@ -48,6 +48,14 @@ public:
         }
     }
 
+    void broadcastQueue(){
+        while(!plates_.empty()){
+            auto& plate = plates_.front();
+            sendPlate(plate);
+            plates_.pop();
+        }
+    }
+
     void closeSockets(){
         std::cout<<"Close sockets\n";
         for (const auto& sock : acceptedSockets_){
@@ -67,13 +75,12 @@ public:
                                 plates_.push("AU1488EB\n");
                             }
                         }));
-        sockThread = std::make_unique<std::thread>(
-                std::thread(
-                        [&](){
-                            acceptSocket();
-                        }
-                )
-        );
+
+        acceptSocket();
+
+        if (!plates_.empty()){
+
+        }
     }
 
     void sendStop(){
