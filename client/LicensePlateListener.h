@@ -7,19 +7,18 @@ class LicensePlateListener{
 public:
     virtual void start() = 0;
     virtual void stop() = 0;
-    void run(){
-//        std::thread([mutex_](){
-//            std::string plate = getPlate_();
-//            std::lock_guard<std::mutex> locker(mutex_);
-//
-//        })
-    }
+    virtual void run() = 0;
 
-    std::string getPlate(){
+    std::string popPlate(){
         std::lock_guard<std::mutex> locker(mutex_);
         auto plate = plates_.front();
         plates_.pop();
         return plate;
+    }
+
+    void pushPlate(const std::string& plate){
+        std::lock_guard<std::mutex> locker(mutex_);
+        plates_.push(plate);
     }
 
 protected:

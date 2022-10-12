@@ -9,13 +9,10 @@ int main(int argc, char* argv[]) {
 
     //server.handle_connections();
     server.run();
-    server.sendPlate("AU1488EB\n");
-    std::cout<<"SEND\n";
-    server.sendPlate("AU1488EB\n");
-    std::cout<<"SEND\n";
-    server.sendPlate("AU1488EB\n");
-    std::cout<<"SEND\n";
-    server.sendStop();
+    std::cout<<"Press ANY KEY to STOP\n";
 
+    getchar();
+
+    server.stop();
     std::cout<<"Stop server\n";
 }

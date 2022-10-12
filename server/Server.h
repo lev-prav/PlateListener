@@ -9,82 +9,53 @@ using namespace boost::posix_time;
 using boost::system::error_code;
 using namespace boost::placeholders;
 
-class PlateServer{
-    std::vector<std::shared_ptr<ip::tcp::socket>> acceptedSockets_;
-    std::unique_ptr<ip::tcp::acceptor> acceptor_;
-    io_service service_;
-    std::mutex mut_;
-    std::queue<std::string> plates_;
-    std::atomic<bool> inWork { true };
+typedef std::shared_ptr<ip::tcp::socket> shared_socket;
+typedef std::shared_ptr<ip::tcp::acceptor> shared_acceptor;
 
-    std::unique_ptr<std::thread> dataThread;
-    std::unique_ptr<std::thread> sockThread;
+class PlateServer{
 public:
 
-    PlateServer(){
-        acceptor_ = std::make_unique<ip::tcp::acceptor>(
-                ip::tcp::acceptor(service_, ip::tcp::endpoint(ip::tcp::v4(),8001))
-        );
-    }
-
-    static size_t read_complete(char * buff, const error_code & err, size_t bytes) {
-        if ( err) return 0;
-        bool found = std::find(buff, buff + bytes, '\n') < buff + bytes;
-        // we read one-by-one until we get to enter, no buffering
-        return found ? 0 : 1;
-    }
-
-    void acceptSocket(){
-        auto sock = std::make_shared<ip::tcp::socket>(ip::tcp::socket(service_));
-        std::cout<<"Socket created, start accepting...\n";
-        acceptor_->accept(*sock);
-        acceptedSockets_.push_back(sock);
-    }
-
-    void sendPlate(const std::string& plate){
-        std::cout<<"Send plates\n";
-        for (const auto& sock : acceptedSockets_){
-            sock->write_some(buffer(plate));
-        }
-    }
-
-    void broadcastQueue(){
-        while(!plates_.empty()){
-            auto& plate = plates_.front();
-            sendPlate(plate);
-            plates_.pop();
-        }
-    }
-
-    void closeSockets(){
-        std::cout<<"Close sockets\n";
-        for (const auto& sock : acceptedSockets_){
-            sock->close();
-        }
-    }
-
     void run(){
+        inWork = true;
 
         dataThread = std::make_unique<std::thread>(
                 std::thread(
-                        [&](){
-
-                            while(inWork){
+                        [&]() {
+                            char i = 47;
+                            char plate[20] = "AU1488EB \n";
+                            plate[10] = '\0';
+                            while (inWork) {
                                 boost::this_thread::sleep(boost::posix_time::millisec(3000));
                                 std::lock_guard<std::mutex> locker(mut_);
-                                plates_.push("AU1488EB\n");
+                                plate[8] = i++;
+
+                                plates_.push(std::string(plate));
+                                std::cout<<plate;
                             }
                         }));
 
-        acceptSocket();
 
-        if (!plates_.empty()){
+        sockThread = std::make_unique<std::thread>(
+                [&](){
+                    shared_acceptor acceptor_ =  std::make_shared<ip::tcp::acceptor>(
+                            ip::tcp::acceptor(service_, ip::tcp::endpoint(ip::tcp::v4(),8081))
+                    );
 
-        }
+                    start(acceptor_);
+
+                    service_.run();
+                    std::cout<<"Service stopped\n";
+                }
+        );
+
     }
 
-    void sendStop(){
-        sendPlate("\n");
+    void stop(){
+        inWork = false;
+        service_.stop();
+
+        dataThread->join();
+        sockThread->join();
     }
 
     void handle_connections() {
@@ -109,4 +80,72 @@ public:
         }
     }
 
+private:
+
+    io_service service_;
+    std::mutex mut_;
+    std::queue<std::string> plates_;
+    std::atomic<bool> inWork { false };
+
+    std::unique_ptr<std::thread> dataThread;
+    std::unique_ptr<std::thread> sockThread;
+
+    void start(const shared_acceptor& acceptor_){
+
+        shared_socket socket_ = std::make_shared<ip::tcp::socket>(ip::tcp::socket(acceptor_->get_executor()));;
+
+        std::cout<<"Socket created, start accepting...\n";
+        acceptor_->async_accept(*socket_, boost::bind(&PlateServer::onAccept,
+                                                      this,
+                                                      socket_,
+                                                      acceptor_,
+                                                      boost::asio::placeholders::error)
+        );
+    }
+
+    void onAccept(shared_socket& socket,
+                  const shared_acceptor& acceptor,
+                  const boost::system::error_code& error){
+        std::cout<<"Socket accepted \n";
+
+        if ( error )
+        {
+            std::cout << "Error accepting connection: " << error.message()
+                      << std::endl;
+            return;
+        }
+
+        sendPlates(socket);
+        closeSocket(socket);
+
+        start(acceptor);
+    }
+
+    void sendPlates(shared_socket & socket_){
+        //TODO не будет ли проблем с эмпти без мьютекса
+        while(!plates_.empty()){
+            std::string plate;
+            {
+                std::lock_guard<std::mutex> locker(mut_);
+                plate = plates_.front();
+                plates_.pop();
+            }
+            std::cout<<"Send plates\n";
+            socket_->write_some(buffer(plate));
+        }
+    }
+
+    void closeSocket(shared_socket& socket_){
+        std::cout<<"Close sockets\n";
+        socket_->close();
+
+    }
+
+
+    static size_t read_complete(char * buff, const error_code & err, size_t bytes) {
+        if ( err) return 0;
+        bool found = std::find(buff, buff + bytes, '\n') < buff + bytes;
+        // we read one-by-one until we get to enter, no buffering
+        return found ? 0 : 1;
+    }
 };
