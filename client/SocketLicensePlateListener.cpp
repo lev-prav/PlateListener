@@ -5,18 +5,11 @@
 #include "SocketLicensePlateListener.h"
 
 
-void SocketLicensePlateListener::stop(){
-    socket_->close();
-    service_.stop();
-    std::cout<<"CLose socket\n";
-}
-
 void SocketLicensePlateListener::run() {
+    inWork = true;
+
     thread_ = std::make_unique<std::thread>(
             [&](){
-//                start();
-//                readAll();
-//                stop();
 
                 ip::tcp::endpoint ep(ip::tcp::endpoint(ip::address::from_string("127.0.0.1"), 8081));
                 socket_ = std::make_shared<ip::tcp::socket>(ip::tcp::socket(service_));
@@ -32,51 +25,61 @@ void SocketLicensePlateListener::run() {
                 );
 
                 service_.run();
+
+                socket_->close();
+                std::cout<<"CLose socket\n";
             }
             );
-    thread_->join();
 }
 
 void SocketLicensePlateListener::onConnect(shared_socket &socket,
                                            const error_code &error) {
-    if (error){
+    if (error) {
         std::cout << "Error accepting connection: " << error.message()
                   << std::endl;
         return;
     }
-    readAll();
-    stop();
-}
 
-void SocketLicensePlateListener::readAll() {
-    std::cout<<"Start reading...\n";
-    std::string msg = read();
-    while(!msg.empty()) {
-        pushPlate(msg);
-        std::cout << "RECEIVED: " << msg << std::endl;
-        msg = read();
+    while (inWork) {
+        auto msg = read();
+        if (!msg.empty()) {
+            pushPlate(msg);
+            std::cout << "RECEIVED: " << msg << std::endl;
+        }
     }
 }
 
 std::string SocketLicensePlateListener::read() {
+
     char buf[1024];
-    size_t red_buf = 0;
-    boost::system::error_code err;
-    unsigned long  bytes;
-    try{
-        bytes = boost::asio::read(*socket_, buffer(buf),
-                                       boost::bind(&SocketLicensePlateListener::read_complete,
-                                                   this,
-                                                   buf,
-                                                   err,
-                                                   red_buf)
-        );
-    } catch(boost::exception& ex){
-        std::cout<< diagnostic_information_what(ex)<<"\n";
+    size_t bytes = 0;
+    try
+    {
+        bytes = socket_->receive(buffer(buf));
+
+    } catch(boost::wrapexcept<boost::system::system_error>& ex){
+        std::cout<<ex.what()<<"\n";
+        boost::this_thread::sleep(boost::posix_time::millisec(500));
+
+        return "";
+    } catch(boost::exception &ex){
+        std::cout<<"Unknown READ exception : "<<diagnostic_information_what(ex)<<"\n";
         return "";
     }
 
     return  std::string(buf, bytes - 1);
+}
+
+void SocketLicensePlateListener::start() {
+    std::cout<<"START\n";
+}
+
+void SocketLicensePlateListener::stop(){
+    inWork = false;
+    service_.stop();
+    thread_->join();
+
+    std::cout<<"Stop client\n";
 }
 
 /* RETURN a number of byt*s to read*/
@@ -111,8 +114,4 @@ void SocketLicensePlateListener::sync_echo(std::string msg) {
     std::cout<<"Close socket...\n";
 
     sock.close();
-}
-
-void SocketLicensePlateListener::start() {
-    std::cout<<"START\n";
 }

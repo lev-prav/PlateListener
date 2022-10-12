@@ -25,12 +25,15 @@ public:
                             char plate[20] = "AU1488EB \n";
                             plate[10] = '\0';
                             while (inWork) {
-                                boost::this_thread::sleep(boost::posix_time::millisec(3000));
-                                std::lock_guard<std::mutex> locker(mut_);
-                                plate[8] = i++;
 
-                                plates_.push(std::string(plate));
+                                {
+                                    std::lock_guard<std::mutex> locker(mut_);
+                                    plate[8] = i++;
+
+                                    plates_.push(std::string(plate));
+                                }
                                 std::cout<<plate;
+                                boost::this_thread::sleep(boost::posix_time::millisec(10000));
                             }
                         }));
 
@@ -115,10 +118,13 @@ private:
             return;
         }
 
-        sendPlates(socket);
-        closeSocket(socket);
-
-        start(acceptor);
+        while(inWork){
+            boost::this_thread::sleep( boost::posix_time::millisec(1000));
+            sendPlates(socket);
+        }
+//        closeSocket(socket);
+//
+//        start(acceptor);
     }
 
     void sendPlates(shared_socket & socket_){
