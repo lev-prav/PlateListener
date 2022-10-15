@@ -14,23 +14,15 @@ typedef std::shared_ptr<ip::tcp::socket> shared_socket;
 class SocketLicensePlateListener :
         public LicensePlateListener {
     io_service service_;
-    shared_socket socket_;
-    std::unique_ptr<std::thread> thread_;
+    std::shared_ptr<std::thread> workingThread_;
     std::atomic<bool> inWork {false};
 
-    std::string read();
-    void readAll();
-    void onRead(char* buf,
-                const error_code &error,
-                size_t& bytes);
-    void onConnect(shared_socket& socket, const boost::system::error_code& error);
-    size_t read_complete(char * buf, const error_code & err, size_t& bytes);
+    std::string read(shared_socket);
+    std::shared_ptr<std::thread> makeSocketThread();
+    void startReading(shared_socket& socket, const boost::system::error_code& error);
 
 public:
 
-
-    void sync_echo(std::string msg);
-    void start() override;
     void stop() override;
     void run() override;
 

@@ -22,7 +22,7 @@ public:
                 std::thread(
                         [&]() {
                             char i = 47;
-                            char plate[20] = "AU1488EB \n";
+                            char plate[20] = "AU1488EB ";
                             plate[10] = '\0';
                             while (inWork) {
 
@@ -122,9 +122,7 @@ private:
             boost::this_thread::sleep( boost::posix_time::millisec(1000));
             sendPlates(socket);
         }
-//        closeSocket(socket);
-//
-//        start(acceptor);
+
     }
 
     void sendPlates(shared_socket & socket_){
