@@ -12,7 +12,7 @@ void SocketLicensePlateListener::run() {
             [&](){
 
                 while(inWork){
-                    auto socketThread = makeSocketThread();
+                    auto socketThread = make_socket_thread();
 
                     socketThread->join();
                     boost::this_thread::sleep(boost::posix_time::millisec(1000));
@@ -23,7 +23,7 @@ void SocketLicensePlateListener::run() {
 
 }
 
-std::shared_ptr<std::thread> SocketLicensePlateListener::makeSocketThread() {
+std::shared_ptr<std::thread> SocketLicensePlateListener::make_socket_thread() {
     return std::make_shared<std::thread>(
             [&](){
 
@@ -34,7 +34,7 @@ std::shared_ptr<std::thread> SocketLicensePlateListener::makeSocketThread() {
 
                 try {
                     socket_->connect(ep, error);
-                    startReading(socket_, error);
+                    start_reading(socket_, error);
                 } catch(boost::wrapexcept<boost::system::system_error>& ex) {
                     std::cout<<ex.what()<<'\n';
                 }
@@ -45,8 +45,8 @@ std::shared_ptr<std::thread> SocketLicensePlateListener::makeSocketThread() {
     );
 }
 
-void SocketLicensePlateListener::startReading(shared_socket &socket,
-                                              const error_code &error) {
+void SocketLicensePlateListener::start_reading(shared_socket &socket,
+                                               const error_code &error) {
     if (error) {
         std::cout << "Error accepting connection: " << error.message()
                   << std::endl;

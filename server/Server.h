@@ -17,20 +17,19 @@ public:
 
     void run(){
         inWork = true;
+        plates_.swap(*(new std::queue<std::string>()));
 
         dataThread = std::make_unique<std::thread>(
                 std::thread(
                         [&]() {
-                            char i = 47;
-                            char plate[20] = "AU1488EB ";
-                            plate[10] = '\0';
+                            //Direction;plate;time
+                            std::string plate = "in;x111xx;1665591901 ";
                             while (inWork) {
 
                                 {
                                     std::lock_guard<std::mutex> locker(mut_);
-                                    plate[8] = i++;
 
-                                    plates_.push(std::string(plate));
+                                    plates_.push(plate);
                                 }
                                 std::cout<<plate;
                                 boost::this_thread::sleep(boost::posix_time::millisec(10000));

@@ -18,13 +18,12 @@ class SocketLicensePlateListener :
     std::atomic<bool> inWork {false};
 
     std::string read(shared_socket);
-    std::shared_ptr<std::thread> makeSocketThread();
-    void startReading(shared_socket& socket, const boost::system::error_code& error);
+    std::shared_ptr<std::thread> make_socket_thread();
+    void start_reading(shared_socket& socket, const boost::system::error_code& error);
 
 public:
 
     void stop() override;
     void run() override;
-
 };
 

@@ -14,7 +14,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../bin)
 add_executable(client   client/main.cpp
                         client/LicensePlateListener.h
                         client/SocketLicensePlateListener.cpp
-                        client/SocketLicensePlateListener.h)
+                        client/SocketLicensePlateListener.h
+                        client/PlateInfo.h client/TruckPassDeserializer.cpp client/TruckPassDeserializer.h)
 
 target_link_libraries(client ${Boost_LIBRARIES})
 
