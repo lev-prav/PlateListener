@@ -3,7 +3,6 @@
 #include <mutex>
 #include <thread>
 #include "PlateInfo.h"
-#include "TruckPassDeserializer.h"
 
 
 class LicensePlateListener{
@@ -20,10 +19,10 @@ public:
 
     void pushPlate(const std::string& plate){
 
-        auto truckPassInfo = PlateInfo::TruckPassDeserializer().deserialize(plate);
+        auto truckPassInfo = PlateInfo::deserialize_TruckPass(plate);
 
         std::lock_guard<std::mutex> locker(mutex_);
-        plates_.push(truckPassInfo);
+        plates_.push(std::move(truckPassInfo));
     }
 
 protected:

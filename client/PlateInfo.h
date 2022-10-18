@@ -4,6 +4,8 @@
 #pragma once
 
 #include <string>
+#include <vector>
+#include <boost/algorithm/string.hpp>
 
 namespace PlateInfo {
     enum class Direction {
@@ -12,19 +14,15 @@ namespace PlateInfo {
         UNDEFINED
     };
 
-    static Direction get_direction(const std::string& dir) {
-        if (dir == "in") {
-            return Direction::IN;
-        } else if (dir == "out") {
-            return Direction::OUT;
-        }
-        return Direction::UNDEFINED;
-    }
-
     struct TruckPassInfo {
         Direction dir;
         std::string plate_number;
         int64_t timestamp;
     };
+
+    Direction get_direction(const std::string& dir);
+
+    std::vector<std::string> split_string(const std::string &str, const std::string &delim);
+    TruckPassInfo deserialize_TruckPass(const std::string &plateString);
 
 }

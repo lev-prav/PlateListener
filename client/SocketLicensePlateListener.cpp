@@ -4,6 +4,9 @@
 
 #include "SocketLicensePlateListener.h"
 
+using namespace boost::asio;
+using boost::system::error_code;
+using namespace boost::placeholders;
 
 void SocketLicensePlateListener::run() {
     inWork = true;
@@ -12,37 +15,30 @@ void SocketLicensePlateListener::run() {
             [&](){
 
                 while(inWork){
-                    auto socketThread = make_socket_thread();
+                    connect();
 
-                    socketThread->join();
-                    boost::this_thread::sleep(boost::posix_time::millisec(1000));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                     std::cout<<"Reconnection...\n";
                 }
             })
                     );
-
 }
 
-std::shared_ptr<std::thread> SocketLicensePlateListener::make_socket_thread() {
-    return std::make_shared<std::thread>(
-            [&](){
+void SocketLicensePlateListener::connect() {
+    ip::tcp::endpoint ep(ip::tcp::endpoint(ip::address::from_string(ip), port));
+    auto socket_ = std::make_shared<ip::tcp::socket>(ip::tcp::socket(service_));
+    error_code error;
+    std::cout<<"Wait connection...\n";
 
-                ip::tcp::endpoint ep(ip::tcp::endpoint(ip::address::from_string("127.0.0.1"), 8081));
-                auto socket_ = std::make_shared<ip::tcp::socket>(ip::tcp::socket(service_));
-                error_code error;
-                std::cout<<"Wait connection...\n";
+    try {
+        socket_->connect(ep, error);
+        start_reading(socket_, error);
+    } catch(boost::wrapexcept<boost::system::system_error>& ex) {
+        std::cout<<ex.what()<<'\n';
+    }
 
-                try {
-                    socket_->connect(ep, error);
-                    start_reading(socket_, error);
-                } catch(boost::wrapexcept<boost::system::system_error>& ex) {
-                    std::cout<<ex.what()<<'\n';
-                }
-
-                socket_->close();
-                std::cout<<"CLose socket\n";
-            }
-    );
+    socket_->close();
+    std::cout<<"CLose socket\n";
 }
 
 void SocketLicensePlateListener::start_reading(shared_socket &socket,
@@ -73,7 +69,7 @@ std::string SocketLicensePlateListener::read(shared_socket socket_) {
 
     } catch(boost::wrapexcept<boost::system::system_error>& ex){
         std::cout<<ex.what()<<"\n";
-        boost::this_thread::sleep(boost::posix_time::millisec(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
         return "";
     } catch(boost::exception &ex){
